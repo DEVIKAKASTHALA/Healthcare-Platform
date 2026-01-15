@@ -1,0 +1,16 @@
+pipeline {
+    agent any
+    
+    environment {
+        DOCKER_REGISTRY = 'healthcare-registry'
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/DEVIKAKASTHALA/Healthcare-Platform.git'
+            }
+        }
+        
+        stage('Build Backend')

@@ -1,0 +1,32 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: patient-service
+  data:
+    cassandra:
+      keyspace-name: healthcare
+      contact-points: ${CASSANDRA_HOST:localhost}
+      port: 9042
+      local-datacenter: datacenter1
+      schema-action: create-if-not-exists
+  kafka:
+    bootstrap-servers: ${KAFKA_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+logging:
+  level:
+    com.hca.healthcare: DEBUG

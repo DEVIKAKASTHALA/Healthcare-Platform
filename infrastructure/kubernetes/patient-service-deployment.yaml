@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: patient-service
+  namespace: healthcare
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: patient-service
+  template:
+    metadata:
+      labels:
+        app: patient-service
+    spec:
+      containers:
+        - name: patient-service
+          image: patient-service:1.0.0
+          ports:
+            - containerPort: 8081
+          env:
+            - name: CASSANDRA_HOST
+              value: "cassandra-service"
+            - name: KAFKA_SERVERS
+              value: "kafka-service:9092"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: patient-service
+  namespace: healthcare
+spec:
+  selector:
+    app: patient-service
+  ports:
+    - port: 80
+      targetPort: 8081
+  type: LoadBalancer

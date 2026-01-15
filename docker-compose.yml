@@ -1,0 +1,132 @@
+version: "3.8"
+
+services:
+  cassandra:
+    image: cassandra:4.0
+    container_name: cassandra
+    ports:
+      - "9042:9042"
+    environment:
+      - CASSANDRA_CLUSTER_NAME=HealthcareCluster
+    volumes:
+      - cassandra-data:/var/lib/cassandra
+    networks:
+      - healthcare-net
+
+  mongodb:
+    image: mongo:6.0
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - healthcare-net
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    networks:
+      - healthcare-net
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - healthcare-net
+
+  patient-service:
+    build: ./backend/patient-service
+    container_name: patient-service
+    ports:
+      - "8081:8081"
+    environment:
+      - CASSANDRA_HOST=cassandra
+      - KAFKA_SERVERS=kafka:29092
+    depends_on:
+      - cassandra
+      - kafka
+    networks:
+      - healthcare-net
+
+  appointment-service:
+    build: ./backend/appointment-service
+    container_name: appointment-service
+    ports:
+      - "8082:8082"
+    environment:
+      - CASSANDRA_HOST=cassandra
+      - KAFKA_SERVERS=kafka:29092
+    depends_on:
+      - cassandra
+      - kafka
+    networks:
+      - healthcare-net
+
+  billing-service:
+    build: ./backend/billing-service
+    container_name: billing-service
+    ports:
+      - "8083:8083"
+    environment:
+      - MONGODB_URI=mongodb://admin:password@mongodb:27017/healthcare?authSource=admin
+      - KAFKA_SERVERS=kafka:29092
+    depends_on:
+      - mongodb
+      - kafka
+    networks:
+      - healthcare-net
+
+  patient-portal:
+    build: ./frontend/react-patient-portal
+    container_name: patient-portal
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8080
+    networks:
+      - healthcare-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - healthcare-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - healthcare-net
+
+networks:
+  healthcare-net:
+    driver: bridge
+
+volumes:
+  cassandra-data:
+  mongodb-data:
